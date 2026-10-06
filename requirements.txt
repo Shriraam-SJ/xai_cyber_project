@@ -1,0 +1,19 @@
+# Core (always required)
+flask>=3.0
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+joblib>=1.3
+
+# Preferred modeling/explainability stack from the project spec.
+# The code auto-detects these: if installed, the ensemble uses
+# CatBoost+LightGBM+XGBoost and root-cause attribution uses real
+# shap.TreeExplainer. If any are missing, app.py/train_ensemble.py/
+# explainability.py automatically fall back to a scikit-learn-only
+# ensemble + an occlusion-based attribution method, so the system
+# still runs end-to-end without them.
+xgboost>=2.0
+lightgbm>=4.0
+catboost>=1.2
+shap>=0.44
+imbalanced-learn>=0.12

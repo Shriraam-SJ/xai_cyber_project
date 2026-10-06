@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>XAI Prescriptive Cybersecurity Console</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#121821; --panel-2:#161e2a; --border:#232d3b;
+    --text:#dde6f0; --muted:#8695a7; --accent:#3ecf8e; --accent-dim:#1f6e4f;
+    --low:#3ecf8e; --medium:#e8b93a; --high:#e8503a; --blue:#4fa3ff;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:radial-gradient(circle at top left,#101722,#0b0f14 55%); color:var(--text);
+    min-height:100vh;
+  }
+  header{
+    padding:18px 28px; border-bottom:1px solid var(--border); display:flex;
+    align-items:center; justify-content:space-between; position:sticky; top:0;
+    background:rgba(11,15,20,0.9); backdrop-filter:blur(6px); z-index:10;
+  }
+  header h1{font-size:16px; margin:0; letter-spacing:0.5px; font-weight:600;}
+  header h1 span{color:var(--accent);}
+  .status-pill{
+    font-size:11px; padding:4px 10px; border-radius:20px; border:1px solid var(--border);
+    color:var(--muted); font-family:var(--mono);
+  }
+  .status-pill.on{color:var(--accent); border-color:var(--accent-dim);}
+  nav{display:flex; gap:6px;}
+  nav button{
+    background:transparent; border:1px solid transparent; color:var(--muted);
+    padding:7px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:500;
+  }
+  nav button.active{background:var(--panel-2); color:var(--text); border-color:var(--border);}
+  main{padding:24px 28px 60px; max-width:1300px; margin:0 auto;}
+  .tab{display:none;}
+  .tab.active{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .row{display:flex; gap:16px; flex-wrap:wrap;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    padding:18px 20px; flex:1;
+  }
+  .card h2{font-size:13px; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin:0 0 14px;}
+  .card h3{font-size:13px; color:var(--muted); margin:0 0 10px; font-weight:500;}
+
+  .metric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:18px;}
+  .metric{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:14px 16px;
+  }
+  .metric .val{font-size:26px; font-weight:700; font-family:var(--mono);}
+  .metric .lbl{font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.4px;}
+
+  button.primary{
+    background:var(--accent); color:#04140c; border:none; padding:10px 18px;
+    border-radius:9px; font-weight:700; cursor:pointer; font-size:13px;
+  }
+  button.primary:disabled{opacity:0.5; cursor:not-allowed;}
+  button.secondary{
+    background:transparent; border:1px solid var(--border); color:var(--text);
+    padding:10px 18px; border-radius:9px; cursor:pointer; font-size:13px;
+  }
+  .entry-mode-btn.active{
+    background:var(--panel-2); border-color:var(--accent-dim); color:var(--accent); font-weight:700;
+  }
+  textarea{font-family:var(--mono);}
+  input[type=number], select, input[type=text]{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); font-size:13px; font-family:var(--mono);
+  }
+  label{font-size:11px; color:var(--muted); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.3px;}
+  .field{margin-bottom:14px;}
+  .form-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px;}
+
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; font-family:var(--mono);}
+  .badge.Low{background:rgba(62,207,142,0.15); color:var(--low);}
+  .badge.Medium{background:rgba(232,185,58,0.15); color:var(--medium);}
+  .badge.High{background:rgba(232,80,58,0.15); color:var(--high);}
+
+  .gauge-wrap{display:flex; align-items:center; gap:22px; margin-bottom:6px;}
+  .gauge-track{flex:1; height:14px; border-radius:8px; background:var(--panel-2); overflow:hidden; border:1px solid var(--border);}
+  .gauge-fill{height:100%; border-radius:8px; transition:width .5s ease;}
+  .gauge-score{font-family:var(--mono); font-size:30px; font-weight:700; min-width:80px; text-align:right;}
+
+  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+  .bar-label{width:150px; font-size:12px; color:var(--muted); font-family:var(--mono); text-align:right; flex-shrink:0;}
+  .bar-track{flex:1; height:16px; background:var(--panel-2); border-radius:6px; overflow:hidden; border:1px solid var(--border);}
+  .bar-fill{height:100%; background:linear-gradient(90deg,var(--blue),var(--accent)); border-radius:6px;}
+  .bar-val{width:52px; font-size:11px; font-family:var(--mono); color:var(--muted);}
+
+  ul.actions{margin:0; padding-left:18px;}
+  ul.actions li{margin-bottom:8px; font-size:13px; line-height:1.5;}
+
+  .control-chip{
+    display:inline-block; background:var(--panel-2); border:1px solid var(--border);
+    padding:6px 12px; border-radius:8px; font-size:12px; margin:0 6px 6px 0;
+  }
+  .control-chip b{color:var(--blue); font-family:var(--mono);}
+
+  table{width:100%; border-collapse:collapse; font-size:12px;}
+  th, td{padding:6px 8px; text-align:center; border:1px solid var(--border); font-family:var(--mono);}
+  th{color:var(--muted); font-weight:600; background:var(--panel-2);}
+  .diag-heat{color:#04140c; font-weight:700;}
+
+  .empty-state{color:var(--muted); font-size:13px; padding:30px; text-align:center; border:1px dashed var(--border); border-radius:12px;}
+  .toast{
+    position:fixed; bottom:20px; right:20px; background:var(--panel-2); border:1px solid var(--border);
+    padding:12px 18px; border-radius:10px; font-size:13px; z-index:100; max-width:340px; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toast.err{border-color:var(--high); color:var(--high);}
+  .flex-between{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .diagnosis-box{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; font-size:13px; line-height:1.6; margin-bottom:16px;
+  }
+  .muted-small{font-size:11px; color:var(--muted); margin-top:6px;}
+
+  /* Progress bars */
+  .progress-wrap{display:none; margin-top:12px;}
+  .progress-wrap.show{display:block;}
+  .progress-track{
+    width:100%; height:10px; border-radius:6px; background:var(--panel-2);
+    border:1px solid var(--border); overflow:hidden;
+  }
+  .progress-fill{
+    height:100%; width:0%; border-radius:6px; background:linear-gradient(90deg,var(--blue),var(--accent));
+    transition:width .25s ease;
+  }
+  .progress-fill.indeterminate{
+    background:linear-gradient(90deg,var(--blue),var(--accent),var(--blue));
+    background-size:200% 100%; animation:shimmer 1.1s linear infinite;
+  }
+  @keyframes shimmer{ 0%{background-position:0% 0;} 100%{background-position:-200% 0;} }
+  .progress-label{display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:6px; font-family:var(--mono);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>XAI <span>Prescriptive</span> Cybersecurity Console</h1>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <span id="statusPill" class="status-pill">no model trained</span>
+    <nav>
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="entry">Data Entry</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ DASHBOARD TAB ============ -->
+  <section id="dashboard" class="tab active">
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="flex-between">
+        <h2 style="margin:0;">Dataset &amp; Training</h2>
+        <span id="datasetSourceLbl" class="muted-small"></span>
+      </div>
+      <div class="row" style="align-items:flex-end;">
+        <button class="secondary" id="btnUploadTrigger">Upload ToN_IoT CSV</button>
+        <input type="file" id="fileInput" accept=".csv" style="display:none;"/>
+        <button class="primary" id="btnTrain" disabled>Train Ensemble</button>
+      </div>
+
+      <div class="progress-wrap" id="uploadProgressWrap">
+        <div class="progress-track"><div class="progress-fill" id="uploadProgressFill"></div></div>
+        <div class="progress-label"><span>Uploading dataset...</span><span id="uploadProgressPct">0%</span></div>
+      </div>
+
+      <div class="progress-wrap" id="trainProgressWrap">
+        <div class="progress-track"><div class="progress-fill indeterminate" id="trainProgressFill"></div></div>
+        <div class="progress-label"><span id="trainProgressLabel">Training ensemble...</span><span id="trainProgressPct">0%</span></div>
+      </div>
+
+      <div class="muted-small" id="trainStatusMsg">Upload a ToN_IoT CSV export to begin (must include a "type" column).</div>
+    </div>
+
+    <div id="metricsEmpty" class="empty-state">Train a model to see performance metrics, confusion matrix, and global feature importance here.</div>
+
+    <div id="metricsWrap" style="display:none;">
+      <div class="metric-grid">
+        <div class="metric"><div class="val" id="mAcc">-</div><div class="lbl">Accuracy</div></div>
+        <div class="metric"><div class="val" id="mF1">-</div><div class="lbl">Macro F1</div></div>
+        <div class="metric"><div class="val" id="mRoc">-</div><div class="lbl">ROC-AUC (OVR)</div></div>
+        <div class="metric"><div class="val" id="mPr">-</div><div class="lbl">PR-AUC (macro)</div></div>
+        <div class="metric"><div class="val" id="mBackend" style="font-size:13px; line-height:1.3;">-</div><div class="lbl">Model backend</div></div>
+      </div>
+
+      <div class="row">
+        <div class="card">
+          <h2>Class Distribution (test set)</h2>
+          <div id="classDistBars"></div>
+        </div>
+        <div class="card">
+          <h2>Global Feature Importance</h2>
+          <div id="importanceBars"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2>Confusion Matrix</h2>
+        <div style="overflow-x:auto;">
+          <table id="confMatrix"></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DATA ENTRY TAB ============ -->
+  <section id="entry" class="tab">
+    <div class="row">
+      <div class="card" style="flex:1.1;">
+        <div class="flex-between">
+          <h2 style="margin:0;">Flow Record — Data Entry</h2>
+          <button class="secondary" id="btnFillSample" style="padding:6px 12px; font-size:12px;">Fill sample (backdoor-like)</button>
+        </div>
+
+        <div class="row" style="gap:8px; margin-bottom:16px;">
+          <button class="secondary entry-mode-btn active" data-mode="manual" id="modeManualBtn">1. Manual Entry</button>
+          <button class="secondary entry-mode-btn" data-mode="csv" id="modeCsvBtn">2. Paste CSV Row</button>
+        </div>
+
+        <div id="csvPasteWrap" style="display:none;">
+          <label>Paste two lines — column names, then one row of values (comma or tab separated)</label>
+          <textarea id="csvPasteArea" rows="6" style="width:100%; font-family:var(--mono); font-size:12px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); resize:vertical;" placeholder="src_ip,src_port,dst_ip,dst_port,proto,service,duration,src_bytes,dst_bytes,conn_state,...&#10;192.168.1.37,4444,192.168.1.193,49178,tcp,-,290.371539,101568,2592,OTH,..."></textarea>
+          <div style="margin-top:10px; display:flex; gap:10px;">
+            <button class="primary" id="btnParseCsv" style="padding:8px 16px; font-size:12px;">Parse &amp; Fill Form</button>
+            <button class="secondary" id="btnClearCsv" style="padding:8px 16px; font-size:12px;">Clear</button>
+          </div>
+          <div class="muted-small" id="csvParseMsg" style="margin-top:8px;"></div>
+        </div>
+
+        <div id="manualEntryWrap">
+          <form id="entryForm" class="form-grid"></form>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button class="primary" id="btnPredict">Run Detection</button>
+        </div>
+        <div class="muted-small" id="predictStatusMsg" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card" style="flex:1.3;">
+        <h2>Result</h2>
+        <div id="resultEmpty" class="empty-state">Submit a flow record to see the predicted attack type, risk index, root-cause drivers, and prescribed remediation.</div>
+        <div id="resultWrap" style="display:none;">
+
+          <div class="flex-between">
+            <div>
+              <div class="muted-small">PREDICTED CLASS</div>
+              <div style="font-size:24px; font-weight:800; text-transform:uppercase;" id="predClass">-</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="muted-small">CONFIDENCE</div>
+              <div style="font-size:20px; font-weight:700; font-family:var(--mono);" id="predConf">-</div>
+            </div>
+          </div>
+
+          <h3 style="margin-top:18px;">Governance Risk Index</h3>
+          <div class="gauge-wrap">
+            <div class="gauge-track"><div class="gauge-fill" id="gaugeFill"></div></div>
+            <div class="gauge-score" id="gaugeScore">0</div>
+          </div>
+          <span class="badge" id="tierBadge">-</span>
+
+          <h3 style="margin-top:20px;">Root-Cause Diagnosis (TreeSHAP-style)</h3>
+          <div class="diagnosis-box" id="diagnosisText">-</div>
+          <div id="contribBars"></div>
+          <div class="muted-small" id="explainerBackendLbl"></div>
+
+          <h3 style="margin-top:20px;">Prescribed Technical Actions</h3>
+          <ul class="actions" id="techActions"></ul>
+
+          <h3 style="margin-top:20px;">Governance &amp; Compliance Mapping</h3>
+          <div id="controlChips"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const API = "";
+let SCHEMA = null;
+let trainProgressTimer = null;
+
+function toast(msg, isErr){
+  const t = document.createElement("div");
+  t.className = "toast" + (isErr ? " err" : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 4200);
+}
+
+async function api(path, opts){
+  const res = await fetch(API + path, opts);
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok){ throw new Error(data.error || ("Request failed: " + res.status)); }
+  return data;
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ---------- Status ----------
+async function refreshStatus(){
+  try{
+    const s = await api("/api/status");
+    const pill = document.getElementById("statusPill");
+    if(s.model_trained){
+      pill.textContent = "model trained \u2713";
+      pill.classList.add("on");
+      document.getElementById("btnPredict").disabled = false;
+    } else {
+      pill.textContent = s.dataset_loaded ? "dataset ready — train model" : "no dataset loaded";
+      pill.classList.remove("on");
+    }
+    document.getElementById("btnTrain").disabled = !s.dataset_loaded;
+    if(s.dataset_source){
+      document.getElementById("datasetSourceLbl").textContent = "Source: " + s.dataset_source;
+    }
+  }catch(e){ /* ignore on first load */ }
+}
+
+// ---------- Dataset upload (with real progress bar) ----------
+document.getElementById("btnUploadTrigger").addEventListener("click", ()=>{
+  document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const wrap = document.getElementById("uploadProgressWrap");
+  const fill = document.getElementById("uploadProgressFill");
+  const pct = document.getElementById("uploadProgressPct");
+  fill.classList.remove("indeterminate");
+  fill.style.width = "0%";
+  pct.textContent = "0%";
+  wrap.classList.add("show");
+  document.getElementById("trainStatusMsg").textContent = "Uploading & cleaning CSV...";
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/dataset/upload");
+
+  xhr.upload.addEventListener("progress", (e)=>{
+    if(e.lengthComputable){
+      const p = Math.round((e.loaded / e.total) * 100);
+      fill.style.width = p + "%";
+      pct.textContent = p + "%";
+    }
+  });
+
+  xhr.onload = ()=>{
+    wrap.classList.remove("show");
+    let data = {};
+    try{ data = JSON.parse(xhr.responseText); }catch(err){}
+    if(xhr.status >= 200 && xhr.status < 300){
+      document.getElementById("trainStatusMsg").textContent = `Loaded ${data.rows} rows from ${file.name}. Ready to train.`;
+      toast("Dataset uploaded.");
+      refreshStatus();
+    } else {
+      document.getElementById("trainStatusMsg").textContent = "Upload failed.";
+      toast(data.error || "Upload failed.", true);
+    }
+  };
+  xhr.onerror = ()=>{
+    wrap.classList.remove("show");
+    document.getElementById("trainStatusMsg").textContent = "Upload failed.";
+    toast("Upload failed — network error.", true);
+  };
+  xhr.send(fd);
+});
+
+// ---------- Training (simulated progress, since the backend call is a single blocking request) ----------
+function startTrainProgress(){
+  const wrap = document.getElementById("trainProgressWrap");
+  const fill = document.getElementById("trainProgressFill");
+  const pct = document.getElementById("trainProgressPct");
+  fill.classList.add("indeterminate");
+  fill.style.width = "100%"; // indeterminate style uses the shimmer, width stays full
+  pct.textContent = "working...";
+  wrap.classList.add("show");
+}
+function stopTrainProgress(){
+  const wrap = document.getElementById("trainProgressWrap");
+  const fill = document.getElementById("trainProgressFill");
+  fill.classList.remove("indeterminate");
+  wrap.classList.remove("show");
+}
+
+document.getElementById("btnTrain").addEventListener("click", async ()=>{
+  const btn = document.getElementById("btnTrain");
+  btn.disabled = true; btn.textContent = "Training...";
+  document.getElementById("trainStatusMsg").textContent = "Training ensemble — this can take a moment...";
+  startTrainProgress();
+  try{
+    const data = await api("/api/train", {method:"POST"});
+    renderMetrics(data.metrics, data.global_feature_importance);
+    document.getElementById("trainStatusMsg").textContent = "Training complete.";
+    toast("Model trained successfully.");
+    refreshStatus();
+    await buildEntryForm();
+  }catch(e){ toast(e.message, true); document.getElementById("trainStatusMsg").textContent = "Training failed."; }
+  finally{
+    stopTrainProgress();
+    btn.disabled = false; btn.textContent = "Train Ensemble";
+  }
+});
+
+// ---------- Metrics rendering (pure CSS bars -- no external chart library) ----------
+function renderBarList(containerId, items, opts){
+  opts = opts || {};
+  const gradient = opts.gradient || "linear-gradient(90deg,var(--blue),var(--accent))";
+  const maxVal = Math.max(...items.map(i=>i.value), 0.0001);
+  document.getElementById(containerId).innerHTML = items.map(i => `
+    <div class="bar-row">
+      <div class="bar-label">${i.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(i.value/maxVal*100).toFixed(1)}%; background:${gradient};"></div></div>
+      <div class="bar-val">${opts.format ? opts.format(i.value) : i.value}</div>
+    </div>`).join("") || `<div class="muted-small">No data.</div>`;
+}
+
+function renderMetrics(metrics, importance){
+  document.getElementById("metricsEmpty").style.display = "none";
+  document.getElementById("metricsWrap").style.display = "block";
+
+  document.getElementById("mAcc").textContent = (metrics.accuracy*100).toFixed(1) + "%";
+  document.getElementById("mF1").textContent = (metrics.macro_f1*100).toFixed(1) + "%";
+  document.getElementById("mRoc").textContent = metrics.roc_auc_ovr_macro!=null ? (metrics.roc_auc_ovr_macro*100).toFixed(1)+"%" : "n/a";
+  document.getElementById("mPr").textContent = metrics.pr_auc_macro!=null ? (metrics.pr_auc_macro*100).toFixed(1)+"%" : "n/a";
+  document.getElementById("mBackend").textContent = metrics.backend.boosting_stack;
+
+  // class distribution (test-set support counts, from the classification report)
+  const labels = metrics.confusion_matrix_labels;
+  const distItems = labels.map(l => ({
+    label: l,
+    value: metrics.classification_report[l] ? metrics.classification_report[l].support : 0
+  }));
+  renderBarList("classDistBars", distItems, { format: v => v });
+
+  // feature importance
+  const impItems = importance.map(i => ({ label: i.feature, value: i.importance }));
+  renderBarList("importanceBars", impItems, { format: v => v.toFixed(3) });
+
+  // confusion matrix
+  let html = "<tr><th></th>" + labels.map(l=>`<th>${l}</th>`).join("") + "</tr>";
+  const maxCell = Math.max(...metrics.confusion_matrix.flat(), 1);
+  metrics.confusion_matrix.forEach((row, i)=>{
+    html += `<tr><th>${labels[i]}</th>` + row.map(v=>{
+      const intensity = v / maxCell;
+      const bg = `rgba(79,163,255,${(intensity*0.85+0.05).toFixed(2)})`;
+      return `<td style="background:${bg}" class="diag-heat">${v}</td>`;
+    }).join("") + "</tr>";
+  });
+  document.getElementById("confMatrix").innerHTML = html;
+}
+
+async function loadExistingMetrics(){
+  try{
+    const data = await api("/api/metrics");
+    renderMetrics(data.metrics, data.global_feature_importance);
+  }catch(e){ /* not trained yet, fine */ }
+}
+
+// ---------- Data entry form ----------
+async function buildEntryForm(){
+  SCHEMA = await api("/api/schema");
+  const form = document.getElementById("entryForm");
+  form.innerHTML = "";
+
+  SCHEMA.numeric_fields.forEach(f=>{
+    const div = document.createElement("div");
+    div.className = "field";
+    div.innerHTML = `<label>${f}</label><input type="number" step="any" name="${f}" value="${SCHEMA.defaults[f]}"/>`;
+    form.appendChild(div);
+  });
+
+  Object.entries(SCHEMA.categorical_fields).forEach(([f, options])=>{
+    const div = document.createElement("div");
+    div.className = "field";
+    const opts = options.map(o => `<option value="${o}" ${o===SCHEMA.defaults[f]?"selected":""}>${o}</option>`).join("");
+    div.innerHTML = `<label>${f}</label><select name="${f}">${opts}</select>`;
+    form.appendChild(div);
+  });
+}
+
+// ---------- Entry mode toggle (Manual vs. Paste CSV) ----------
+document.querySelectorAll(".entry-mode-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".entry-mode-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const mode = btn.dataset.mode;
+    document.getElementById("manualEntryWrap").style.display = mode === "manual" ? "block" : "none";
+    document.getElementById("csvPasteWrap").style.display = mode === "csv" ? "block" : "none";
+  });
+});
+
+// ---------- Paste-CSV parsing: header row + one value row -> fills the same form fields ----------
+function splitDelimited(line){
+  const tabCount = (line.match(/\t/g) || []).length;
+  const commaCount = (line.match(/,/g) || []).length;
+  const delim = tabCount > commaCount ? "\t" : ",";
+  return line.split(delim).map(s => s.trim().replace(/^"(.*)"$/, "$1"));
+}
+
+document.getElementById("btnParseCsv").addEventListener("click", ()=>{
+  const msgEl = document.getElementById("csvParseMsg");
+  const raw = document.getElementById("csvPasteArea").value;
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+  if(lines.length < 2){
+    msgEl.style.color = "var(--high)";
+    msgEl.textContent = "Paste two lines: column names on the first line, one row of values on the second.";
+    return;
+  }
+
+  const headers = splitDelimited(lines[0]);
+  const values = splitDelimited(lines[1]);
+
+  if(headers.length !== values.length){
+    msgEl.style.color = "var(--high)";
+    msgEl.textContent = `Column count mismatch: ${headers.length} header(s) vs ${values.length} value(s). Check the delimiter matches on both lines.`;
+    return;
+  }
+
+  const form = document.getElementById("entryForm");
+  const nameByLower = {};
+  Array.from(form.elements).forEach(el => { if(el.name) nameByLower[el.name.toLowerCase()] = el.name; });
+
+  let filled = 0;
+  headers.forEach((h, i) => {
+    const matchName = nameByLower[h.toLowerCase()];
+    if(matchName){
+      form.elements[matchName].value = values[i];
+      filled++;
+    }
+  });
+
+  msgEl.style.color = "var(--muted)";
+  msgEl.textContent = filled > 0
+    ? `Matched ${filled} of ${headers.length} pasted column(s) to known fields. Review in Manual Entry, then Run Detection.`
+    : "No pasted column names matched a known field — check the header row against the form field names.";
+  if(filled > 0){
+    toast(`Filled ${filled} field(s) from the pasted row.`);
+    document.getElementById("modeManualBtn").click();
+  }
+});
+
+document.getElementById("btnClearCsv").addEventListener("click", ()=>{
+  document.getElementById("csvPasteArea").value = "";
+  document.getElementById("csvParseMsg").textContent = "";
+});
+
+const SAMPLE_RECORD = {
+  duration:290.37, src_bytes:101568, dst_bytes:2592, missed_bytes:0, src_pkts:108,
+  src_ip_bytes:108064, dst_pkts:31, dst_ip_bytes:3832, src_port:4444, dst_port:49178,
+  proto:"tcp", service:"unknown", conn_state:"OTH"
+};
+document.getElementById("btnFillSample").addEventListener("click", ()=>{
+  const form = document.getElementById("entryForm");
+  Object.entries(SAMPLE_RECORD).forEach(([k,v])=>{
+    const el = form.elements[k];
+    if(el) el.value = v;
+  });
+});
+
+document.getElementById("btnPredict").addEventListener("click", async (e)=>{
+  e.preventDefault();
+  const form = document.getElementById("entryForm");
+  const record = {};
+  new FormData(form).forEach((v,k)=>record[k]=v);
+
+  document.getElementById("predictStatusMsg").textContent = "Running inference...";
+  try{
+    const data = await api("/api/predict", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(record)
+    });
+    renderResult(data);
+    document.getElementById("predictStatusMsg").textContent = "";
+  }catch(e){
+    document.getElementById("predictStatusMsg").textContent = "";
+    toast(e.message, true);
+  }
+});
+
+function tierColorVar(tier){
+  return tier === "Low" ? "var(--low)" : tier === "Medium" ? "var(--medium)" : "var(--high)";
+}
+
+function renderResult(data){
+  document.getElementById("resultEmpty").style.display = "none";
+  document.getElementById("resultWrap").style.display = "block";
+
+  document.getElementById("predClass").textContent = data.predicted_class;
+  document.getElementById("predConf").textContent = (data.confidence*100).toFixed(1) + "%";
+
+  const score = data.risk_score;
+  const tier = data.risk_tier;
+  document.getElementById("gaugeScore").textContent = score.toFixed(1);
+  document.getElementById("gaugeScore").style.color = tierColorVar(tier);
+  const fill = document.getElementById("gaugeFill");
+  fill.style.width = score + "%";
+  fill.style.background = tierColorVar(tier);
+  const badge = document.getElementById("tierBadge");
+  badge.textContent = tier + " RISK";
+  badge.className = "badge " + tier;
+
+  document.getElementById("diagnosisText").textContent = data.diagnosis;
+  document.getElementById("explainerBackendLbl").textContent = "Attribution method: " + data.explainer_backend;
+
+  const contribItems = data.top_contributors.map(c => ({ label: c.feature, value: c.phi }));
+  renderBarList("contribBars", contribItems, {
+    gradient: "linear-gradient(90deg,#e8503a,#e8b93a)",
+    format: v => v.toFixed(3)
+  });
+
+  document.getElementById("techActions").innerHTML =
+    data.recommendations.technical_actions.map(a=>`<li>${a}</li>`).join("");
+
+  document.getElementById("controlChips").innerHTML =
+    data.recommendations.governance_controls.map(c=>
+      `<span class="control-chip"><b>${c.control}</b> ${c.name} <span class="muted-small">(${c.framework})</span></span>`
+    ).join("") || "<div class='muted-small'>No specific control triggered for this class.</div>";
+}
+
+// ---------- init ----------
+(async function init(){
+  await refreshStatus();
+  await buildEntryForm();
+  await loadExistingMetrics();
+})();
+</script>
+</body>
+</html>
